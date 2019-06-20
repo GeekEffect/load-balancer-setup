@@ -21,6 +21,17 @@ az network nsg create \
     --name bePortalNSG \
     --location $Location
 
+az network nsg rule create -g $RgName --nsg-name MyNsg -n bePortalNSG --priority 101 \
+                            --source-address-prefixes 'Internet' --source-port-ranges * \
+                            --destination-address-prefixes '*' --destination-port-ranges 80 --access Allow \
+                            --protocol Tcp --description "Allow all port 80 traffic"
+
+#Create DenyAll rule to block the access and simulate a configuration error
+az network nsg rule create -g $RgName --nsg-name MyNsg -n bePortalNSG --priority 100 \
+                            --source-address-prefixes '*' --source-port-ranges 80 \
+                            --destination-address-prefixes '*' --destination-port-ranges 80 --access Deny \
+                            --protocol Tcp --description "Deny all port 80 traffic"
+
 # Create the NIC
 for i in `seq 1 2`; do
   echo '------------------------------------------'
@@ -57,6 +68,11 @@ for i in `seq 1 2`; do
         --custom-data cloud-init.txt
 done
 
+# Stop one VM to simulate a node failure
+az vm stop --resource-group $RgName --name webVM1
+
+done
+
 # Done
 echo '--------------------------------------------------------'
 echo '             VM Setup Completed'
@@ -71,21 +87,24 @@ echo '--------------------------------------------------------'
       --resource-group $RgName \
       --location $Location \
       --allocation-method Static \
-      --name myPublicIP
+      --name myPublicIP \
+      --sku Standard
 
    az network lb create \
       --resource-group $RgName \
       --name myLoadBalancer \
       --public-ip-address myPublicIP \
       --frontend-ip-name myFrontEndPool \
-      --backend-pool-name myBackEndPool
+      --backend-pool-name myBackEndPool \
+      --sku Standard
 
-   az network lb probe create \
-      --resource-group $RgName \
-      --lb-name myLoadBalancer \
-      --name myHealthProbe \
-      --protocol tcp \
-      --port 80  
+# Coment out the health probe to simulate failure
+#  az network lb probe create \
+#     --resource-group $RgName \
+#     --lb-name myLoadBalancer \
+#     --name myHealthProbe \
+#     --protocol tcp \
+#     --port 80
 
    az network lb rule create \
       --resource-group $RgName \
@@ -95,8 +114,15 @@ echo '--------------------------------------------------------'
       --frontend-port 80 \
       --backend-port 80 \
       --frontend-ip-name myFrontEndPool \
-      --backend-pool-name myBackEndPool \
-      --probe-name myHealthProbe
+      --backend-pool-name myBackEndPool
+
+
+    az network nic ip-config update \
+      --resource-group $RgName \
+      --nic-name webNic1 \
+      --name ipconfig1 \
+      --lb-name myLoadBalancer \
+      --lb-address-pools myBackEndPool
 
   az network nic ip-config update \
       --resource-group $RgName \
