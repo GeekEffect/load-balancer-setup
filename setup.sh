@@ -21,13 +21,13 @@ az network nsg create \
     --name bePortalNSG \
     --location $Location
 
-az network nsg rule create -g $RgName --nsg-name MyNsg -n bePortalNSG --priority 101 \
-                            --source-address-prefixes 'Internet' --source-port-ranges * \
+az network nsg rule create -g $RgName --nsg-name bePortalNSG -n AllowAll80 --priority 101 \
+                            --source-address-prefixes 'Internet' --source-port-ranges '*' \
                             --destination-address-prefixes '*' --destination-port-ranges 80 --access Allow \
                             --protocol Tcp --description "Allow all port 80 traffic"
 
 #Create DenyAll rule to block the access and simulate a configuration error
-az network nsg rule create -g $RgName --nsg-name MyNsg -n bePortalNSG --priority 100 \
+az network nsg rule create -g $RgName --nsg-name bePortalNSG -n DenyAll --priority 100 \
                             --source-address-prefixes '*' --source-port-ranges 80 \
                             --destination-address-prefixes '*' --destination-port-ranges 80 --access Deny \
                             --protocol Tcp --description "Deny all port 80 traffic"
@@ -69,9 +69,8 @@ for i in `seq 1 2`; do
 done
 
 # Stop one VM to simulate a node failure
-az vm stop --resource-group $RgName --name webVM1
+az vm stop --resource-group $RgName --name webVM2
 
-done
 
 # Done
 echo '--------------------------------------------------------'
